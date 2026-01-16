@@ -34,7 +34,7 @@ const REQUIRED_VEHICLE_FIELDS = [
   "validTo",
 ];
 
-const CreateCard = () => {
+const CreateCard = ({ onNavigateToDashboard }) => {
   const [employeeData, setEmployeeData] = useState({});
   const [vehicleData, setVehicleData] = useState({});
   const [showPreview, setShowPreview] = useState(false);
@@ -226,6 +226,15 @@ const CreateCard = () => {
       <header className="top-bar">
         <img src={logo} alt="Formula One Logistics" />
         <h2>Office Duty Card Generator</h2>
+        {onNavigateToDashboard && (
+          <button 
+            className="back-btn" 
+            onClick={onNavigateToDashboard}
+            title="Back to Dashboard"
+          >
+            ← Dashboard
+          </button>
+        )}
       </header>
 
       {/* FORM */}

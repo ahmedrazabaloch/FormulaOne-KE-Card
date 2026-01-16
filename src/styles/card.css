@@ -32,6 +32,24 @@ body {
   font-size: 18px;
   margin: 0;
   font-weight: 600;
+  flex: 1; /* Push back button to the right */
+}
+
+.back-btn {
+  background: #667eea;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.back-btn:hover {
+  background: #5568d3;
+  transform: translateX(-2px);
 }
 
 /* =====================================================
