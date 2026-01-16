@@ -1,0 +1,18 @@
+:root {
+  --brand-red: #E63946;
+  --brand-dark: #1C1C1C;
+  --brand-gray: #6B6B6B;
+  --brand-light: #F5F5F5;
+  --border-soft: #E0E0E0;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--brand-light);
+  color: var(--brand-dark);
+}
