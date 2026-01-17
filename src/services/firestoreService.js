@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 /**
@@ -86,6 +86,60 @@ export const saveCardToFirestore = async (employeeData, vehicleData) => {
     return docRef.id;
   } catch (error) {
     console.error("Error saving card to Firestore:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update existing card data in Firestore
+ * @param {string} cardId - Document ID
+ * @param {Object} employeeData - Employee form data
+ * @param {Object} vehicleData - Vehicle form data
+ * @returns {Promise<void>}
+ */
+export const updateCardInFirestore = async (cardId, employeeData, vehicleData) => {
+  try {
+    let photoUrl = employeeData.photoUrl;
+
+    // Upload new photo to Cloudinary if a new one is provided (starts with data:)
+    if (employeeData.photo && employeeData.photo.startsWith("data:")) {
+      photoUrl = await uploadImageToCloudinary(employeeData.photo);
+    }
+
+    // Prepare card data
+    const cardData = {
+      // Employee data
+      serialNo: employeeData.serialNo,
+      employeeCode: employeeData.employeeCode,
+      employeeName: employeeData.employeeName,
+      designation: employeeData.designation,
+      cnic: employeeData.cnic,
+      licenceNo: employeeData.licenceNo,
+      licenceCategory: employeeData.licenceCategory,
+      licenceValidity: employeeData.licenceValidity,
+      dateOfIssue: employeeData.dateOfIssue,
+      validUpto: employeeData.validUpto,
+      ...(photoUrl && { photoUrl }),
+
+      // Vehicle data
+      vehicleNo: vehicleData.vehicleNo,
+      vehicleType: vehicleData.vehicleType,
+      shiftType: vehicleData.shiftType,
+      region: vehicleData.region,
+      departureBC: vehicleData.departureBC,
+      inspectionId: vehicleData.inspectionId,
+      validFrom: vehicleData.validFrom,
+      validTo: vehicleData.validTo,
+
+      // Metadata
+      updatedAt: serverTimestamp(),
+    };
+
+    // Update in Firestore
+    const cardRef = doc(db, "cards", cardId);
+    await updateDoc(cardRef, cardData);
+  } catch (error) {
+    console.error("Error updating card in Firestore:", error);
     throw error;
   }
 };

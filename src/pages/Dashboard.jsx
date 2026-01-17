@@ -1,19 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../config/firebase";
 import CardPreview from "../components/CardPreview";
 import "../styles/dashboard.css";
+import logo from "../assets/Icon.png";
 
-const Dashboard = ({ onNavigateToCreate }) => {
-  const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
+const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard }) => {
+  const [cards, setCards] = useState(cachedCards || []);
+  const [loading, setLoading] = useState(!cachedCards);
   const [error, setError] = useState("");
   const [selectedCard, setSelectedCard] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const searchTimeout = useRef(null);
 
   useEffect(() => {
-    fetchCards();
-  }, []);
+    if (!cachedCards) {
+      fetchCards();
+    }
+  }, [cachedCards]);
 
   const fetchCards = async () => {
     try {
@@ -28,6 +35,7 @@ const Dashboard = ({ onNavigateToCreate }) => {
       }));
       
       setCards(cardsData);
+      setCachedCards(cardsData); // Cache in parent
       setError("");
     } catch (err) {
       console.error("Error fetching cards:", err);
@@ -36,6 +44,23 @@ const Dashboard = ({ onNavigateToCreate }) => {
       setLoading(false);
     }
   };
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [searchTerm]);
 
   const handleView = (card) => {
     setSelectedCard(card);
@@ -55,11 +80,11 @@ const Dashboard = ({ onNavigateToCreate }) => {
     }
   };
 
-  // Filter cards based on search term
+  // Filter cards based on debounced search term
   const filteredCards = cards.filter((card) => {
-    if (!searchTerm) return true;
+    if (!debouncedSearch) return true;
     
-    const search = searchTerm.toLowerCase();
+    const search = debouncedSearch.toLowerCase();
     return (
       card.serialNo?.toLowerCase().includes(search) ||
       card.employeeCode?.toLowerCase().includes(search) ||
@@ -72,11 +97,25 @@ const Dashboard = ({ onNavigateToCreate }) => {
     );
   });
 
+  // Pagination
+  const totalPages = Math.ceil(filteredCards.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentCards = filteredCards.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="dashboard">
         <div className="dashboard-header">
-          <h1>📋 Office Duty Cards</h1>
+          <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
+            <img src={logo} alt="F1 Logo" className="dashboard-logo" />
+            <h1>F1 Employee Cards</h1>
+          </div>
           <button className="btn-primary" onClick={onNavigateToCreate}>
             ➕ Create New Card
           </button>
@@ -90,7 +129,10 @@ const Dashboard = ({ onNavigateToCreate }) => {
     return (
       <div className="dashboard">
         <div className="dashboard-header">
-          <h1>📋 Office Duty Cards</h1>
+          <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
+            <img src={logo} alt="F1 Logo" className="dashboard-logo" />
+            <h1>Office Duty Cards</h1>
+          </div>
           <button className="btn-primary" onClick={onNavigateToCreate}>
             ➕ Create New Card
           </button>
@@ -103,7 +145,10 @@ const Dashboard = ({ onNavigateToCreate }) => {
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <h1>📋 Office Duty Cards</h1>
+        <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
+          <img src={logo} alt="F1 Logo" className="dashboard-logo" />
+          <h1>Office Duty Cards</h1>
+        </div>
         <button className="btn-primary" onClick={onNavigateToCreate}>
           ➕ Create New Card
         </button>
@@ -151,7 +196,7 @@ const Dashboard = ({ onNavigateToCreate }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredCards.map((card) => (
+              {currentCards.map((card) => (
                 <tr key={card.id}>
                   <td>
                     {card.photoUrl ? (
@@ -174,6 +219,13 @@ const Dashboard = ({ onNavigateToCreate }) => {
                     >
                       👁️ View
                     </button>
+                    <button 
+                      className="btn-edit" 
+                      onClick={() => onEditCard && onEditCard(card)}
+                      title="Edit Card"
+                    >
+                      ✏️ Edit
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -182,10 +234,58 @@ const Dashboard = ({ onNavigateToCreate }) => {
         </div>
       )}
 
+      {/* Pagination */}
+      {filteredCards.length > 0 && (
+        <div className="pagination-container">
+          <div className="pagination-info">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredCards.length)} of {filteredCards.length} entries
+          </div>
+          <div className="pagination-controls">
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              ← Previous
+            </button>
+            {[...Array(totalPages)].map((_, index) => {
+              const page = index + 1;
+              // Show first page, last page, current page, and pages around current
+              if (
+                page === 1 ||
+                page === totalPages ||
+                (page >= currentPage - 1 && page <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={page}
+                    className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                    onClick={() => handlePageChange(page)}
+                  >
+                    {page}
+                  </button>
+                );
+              } else if (page === currentPage - 2 || page === currentPage + 2) {
+                return <span key={page} className="pagination-ellipsis">...</span>;
+              }
+              return null;
+            })}
+            <button 
+              className="pagination-btn" 
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedCard && (
         <div className="modal-overlay" onClick={handleClosePreview}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <CardPreview 
+              isModal={true}
               onClose={handleClosePreview}
               employeeData={{
                 serialNo: selectedCard.serialNo,

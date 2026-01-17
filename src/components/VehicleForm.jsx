@@ -1,4 +1,4 @@
-const VehicleForm = ({ onChange, errors = {} }) => {
+const VehicleForm = ({ onChange, errors = {}, values = {} }) => {
   const handleChange = (e) => {
     onChange(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -23,6 +23,7 @@ const VehicleForm = ({ onChange, errors = {} }) => {
             <input 
               type={type}
               name={name} 
+              value={values[name] || ''}
               onChange={handleChange} 
               className={errors[name] ? 'input-error' : ''}
               placeholder={type === 'date' ? 'yyyy-mm-dd' : ''}

@@ -3,7 +3,7 @@ import CardBack from "./CardBack";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portrait" }) => {
+const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portrait", isModal = false }) => {
   const downloadPDF = async () => {
     const cards = document.querySelectorAll(".card");
 
@@ -46,12 +46,12 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
   };
 
   return (
-    <div className="preview-page">
+    <div className={isModal ? "preview-modal-content" : "preview-page"}>
       <div className="preview-actions">
         <button onClick={downloadPDF}>Download PDF</button>
         <button onClick={onClose}>Close</button>
       </div>
-      <div className="preview-wrapper">
+      <div className={isModal ? "preview-wrapper-modal" : "preview-wrapper"}>
         <CardFront data={employeeData} inspectionId={vehicleData.inspectionId} orientation={orientation} />
         <CardBack data={backData} orientation={orientation} />
       </div>

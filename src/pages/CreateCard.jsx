@@ -3,8 +3,8 @@ import EmployeeForm from "../components/EmployeeForm";
 import VehicleForm from "../components/VehicleForm";
 import CardPreview from "../components/CardPreview";
 import Toast from "../components/Toast";
-import { saveCardToFirestore } from "../services/firestoreService";
-import logo from "../assets/logo.png";
+import { saveCardToFirestore, updateCardInFirestore } from "../services/firestoreService";
+import logo from "../assets/Icon.png";
 
 // Pakistani CNIC Format: 00000-0000000-0 (5 digits, dash, 7 digits, dash, 1 digit)
 const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
@@ -34,7 +34,7 @@ const REQUIRED_VEHICLE_FIELDS = [
   "validTo",
 ];
 
-const CreateCard = ({ onNavigateToDashboard }) => {
+const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
   const [employeeData, setEmployeeData] = useState({});
   const [vehicleData, setVehicleData] = useState({});
   const [showPreview, setShowPreview] = useState(false);
@@ -42,18 +42,48 @@ const CreateCard = ({ onNavigateToDashboard }) => {
   const [vehicleErrors, setVehicleErrors] = useState({});
   const [toastMessage, setToastMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const isEditing = !!editingCard;
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount or from editingCard
   useEffect(() => {
-    try {
-      const savedEmployee = localStorage.getItem("employeeData");
-      const savedVehicle = localStorage.getItem("vehicleData");
+    if (editingCard) {
+      // Load from editing card
+      setEmployeeData({
+        serialNo: editingCard.serialNo,
+        employeeCode: editingCard.employeeCode,
+        employeeName: editingCard.employeeName,
+        designation: editingCard.designation,
+        cnic: editingCard.cnic,
+        licenceNo: editingCard.licenceNo,
+        licenceCategory: editingCard.licenceCategory,
+        licenceValidity: editingCard.licenceValidity,
+        dateOfIssue: editingCard.dateOfIssue,
+        validUpto: editingCard.validUpto,
+        photoUrl: editingCard.photoUrl,
+        photo: editingCard.photoUrl, // Set for display
+      });
+      setVehicleData({
+        vehicleNo: editingCard.vehicleNo,
+        vehicleType: editingCard.vehicleType,
+        shiftType: editingCard.shiftType,
+        region: editingCard.region,
+        departureBC: editingCard.departureBC,
+        inspectionId: editingCard.inspectionId,
+        validFrom: editingCard.validFrom,
+        validTo: editingCard.validTo,
+      });
+    } else {
+      // Load from localStorage
+      try {
+        const savedEmployee = localStorage.getItem("employeeData");
+        const savedVehicle = localStorage.getItem("vehicleData");
       if (savedEmployee) setEmployeeData(JSON.parse(savedEmployee));
       if (savedVehicle) setVehicleData(JSON.parse(savedVehicle));
-    } catch (error) {
-      console.error("Error loading from localStorage:", error);
+      } catch (error) {
+        console.error("Error loading saved data:", error);
+      }
     }
-  }, []);
+  }, [editingCard]);
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -126,7 +156,7 @@ const CreateCard = ({ onNavigateToDashboard }) => {
       errorMessages.push("CNIC format invalid. Use: 00000-0000000-0");
     }
 
-    // Check uniqueness in Firestore (only if fields are filled)
+    // Check uniqueness in Firestore (only if fields are filled and not editing the same card)
     if (employeeData.serialNo || employeeData.employeeCode || employeeData.cnic) {
       try {
         const { collection, query, where, getDocs } = await import("firebase/firestore");
@@ -139,8 +169,11 @@ const CreateCard = ({ onNavigateToDashboard }) => {
           const qSerial = query(cardsRef, where("serialNo", "==", employeeData.serialNo));
           const snapshotSerial = await getDocs(qSerial);
           if (!snapshotSerial.empty) {
-            empErr.serialNo = true;
-            errorMessages.push("Serial No already exists!");
+            // If editing, only error if the Serial No belongs to a different card
+            if (!isEditing || snapshotSerial.docs[0].id !== editingCard.id) {
+              empErr.serialNo = true;
+              errorMessages.push("Serial No already exists!");
+            }
           }
         }
         
@@ -149,8 +182,11 @@ const CreateCard = ({ onNavigateToDashboard }) => {
           const qCode = query(cardsRef, where("employeeCode", "==", employeeData.employeeCode));
           const snapshotCode = await getDocs(qCode);
           if (!snapshotCode.empty) {
-            empErr.employeeCode = true;
-            errorMessages.push("Employee Code already exists!");
+            // If editing, only error if the Employee Code belongs to a different card
+            if (!isEditing || snapshotCode.docs[0].id !== editingCard.id) {
+              empErr.employeeCode = true;
+              errorMessages.push("Employee Code already exists!");
+            }
           }
         }
         
@@ -159,8 +195,11 @@ const CreateCard = ({ onNavigateToDashboard }) => {
           const qCNIC = query(cardsRef, where("cnic", "==", employeeData.cnic));
           const snapshotCNIC = await getDocs(qCNIC);
           if (!snapshotCNIC.empty) {
-            empErr.cnic = true;
-            errorMessages.push("CNIC already registered!");
+            // If editing, only error if the CNIC belongs to a different card
+            if (!isEditing || snapshotCNIC.docs[0].id !== editingCard.id) {
+              empErr.cnic = true;
+              errorMessages.push("CNIC already registered!");
+            }
           }
         }
       } catch (error) {
@@ -199,18 +238,31 @@ const CreateCard = ({ onNavigateToDashboard }) => {
 
     setIsSaving(true);
     try {
-      const cardId = await saveCardToFirestore(employeeData, vehicleData);
-      setToastMessage(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`);
-      // Clear localStorage after successful save
-      localStorage.removeItem("employeeData");
-      localStorage.removeItem("vehicleData");
-      // Reset form
+      if (isEditing) {
+        // Update existing card
+        await updateCardInFirestore(editingCard.id, employeeData, vehicleData);
+        setToastMessage(`Card updated successfully!`);
+      } else {
+        // Create new card
+        const cardId = await saveCardToFirestore(employeeData, vehicleData);
+        setToastMessage(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`);
+        // Clear localStorage after successful save
+        localStorage.removeItem("employeeData");
+        localStorage.removeItem("vehicleData");
+      }
+      // Reset form and navigate
       setTimeout(() => {
         setEmployeeData({});
         setVehicleData({});
         setEmployeeErrors({});
         setVehicleErrors({});
         setShowPreview(false);
+        // Navigate back and invalidate cache
+        if (onCardCreated) {
+          onCardCreated();
+        } else if (onNavigateToDashboard) {
+          onNavigateToDashboard();
+        }
       }, 1500);
     } catch (error) {
       setToastMessage("Error saving card. Please try again.");
@@ -224,8 +276,15 @@ const CreateCard = ({ onNavigateToDashboard }) => {
     <>
       {/* HEADER */}
       <header className="top-bar">
-        <img src={logo} alt="Formula One Logistics" />
-        <h2>Office Duty Card Generator</h2>
+        <div 
+          className="header-title" 
+          onClick={onNavigateToDashboard} 
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px' }}
+          title="Back to Dashboard"
+        >
+          <img src={logo} alt="F1 Logo" style={{ height: '36px' }} />
+          <h2>{isEditing ? 'Edit Office Duty Card' : 'Office Duty Card Generator'}</h2>
+        </div>
         {onNavigateToDashboard && (
           <button 
             className="back-btn" 
@@ -241,7 +300,7 @@ const CreateCard = ({ onNavigateToDashboard }) => {
       <main className="layout-center">
         <div className="form-wrapper">
           <EmployeeForm onChange={setEmployeeData} errors={employeeErrors} values={employeeData} />
-          <VehicleForm onChange={setVehicleData} errors={vehicleErrors} />
+          <VehicleForm onChange={setVehicleData} errors={vehicleErrors} values={vehicleData} />
 
           {/* IMPORTANT: type="button" */}
           <div style={{ display: "flex", gap: "10px" }}>
@@ -255,7 +314,7 @@ const CreateCard = ({ onNavigateToDashboard }) => {
               disabled={isSaving}
               style={{ background: isSaving ? "#999" : "#2e7d32" }}
             >
-              {isSaving ? "Saving..." : "Save to Database"}
+              {isSaving ? "Saving..." : isEditing ? "Update Card" : "Save to Database"}
             </button>
           </div>
         </div>
