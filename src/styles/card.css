@@ -318,6 +318,24 @@ body {
   padding: 10px;
 }
 
+/* When capturing for PDF, force cards to render at real size */
+.pdf-capture .card {
+  transform: none !important;
+}
+
+/* Override all media query transforms for consistency */
+@media print, screen {
+  .card.card-portrait {
+    width: 53.98mm !important;
+    height: 85.6mm !important;
+  }
+  
+  .employee-photo {
+    width: 20mm !important;
+    height: 24mm !important;
+  }
+}
+
 /* =====================================================
    CARD — REAL CR80 SIZE
 ===================================================== */
@@ -325,8 +343,8 @@ body {
   width: 85.6mm;
   height: 53.98mm;
   background: #fff;
-  border: 1px solid #555;
-  border-radius: 0;
+  border: 1px solid #e0e0e0; /* light border for clean cut guide */
+  border-radius: 2px;
   padding: 3.5mm;
   box-sizing: border-box;
   transform: none;
@@ -338,7 +356,7 @@ body {
 
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2mm 8mm rgba(211, 47, 47, 0.15);
+  /* box-shadow: 0 2mm 8mm rgba(211, 47, 47, 0.15); */
   margin: 0;
   position: relative;
 }
@@ -366,11 +384,20 @@ body {
    EMPLOYEE PHOTO
 ===================================================== */
 .employee-photo {
-  width: 20mm;
-  height: 24mm;
+  width: 20mm !important;
+  height: 24mm !important;
+  min-width: 20mm;
+  min-height: 24mm;
+  max-width: 20mm;
+  max-height: 24mm;
   object-fit: cover;
+  object-position: center;
   margin: 3mm auto 3mm;
   display: block;
+  border: 2px solid #333;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 /* File input row with right-side thumbnail */

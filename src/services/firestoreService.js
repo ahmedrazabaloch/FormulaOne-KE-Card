@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 /**
@@ -140,6 +140,21 @@ export const updateCardInFirestore = async (cardId, employeeData, vehicleData) =
     await updateDoc(cardRef, cardData);
   } catch (error) {
     console.error("Error updating card in Firestore:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a card from Firestore
+ * @param {string} cardId - Document ID
+ * @returns {Promise<void>}
+ */
+export const deleteCardFromFirestore = async (cardId) => {
+  try {
+    const cardRef = doc(db, "cards", cardId);
+    await deleteDoc(cardRef);
+  } catch (error) {
+    console.error("Error deleting card from Firestore:", error);
     throw error;
   }
 };

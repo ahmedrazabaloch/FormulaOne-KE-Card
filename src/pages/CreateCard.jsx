@@ -3,6 +3,7 @@ import EmployeeForm from "../components/EmployeeForm";
 import VehicleForm from "../components/VehicleForm";
 import CardPreview from "../components/CardPreview";
 import Toast from "../components/Toast";
+import Loader from "../components/Loader";
 import { saveCardToFirestore, updateCardInFirestore } from "../services/firestoreService";
 import logo from "../assets/Icon.png";
 
@@ -38,6 +39,7 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
   const [employeeData, setEmployeeData] = useState({});
   const [vehicleData, setVehicleData] = useState({});
   const [showPreview, setShowPreview] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [employeeErrors, setEmployeeErrors] = useState({});
   const [vehicleErrors, setVehicleErrors] = useState({});
   const [toastMessage, setToastMessage] = useState("");
@@ -240,10 +242,12 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
     try {
       if (isEditing) {
         // Update existing card
+        setLoadingMessage("Updating card...");
         await updateCardInFirestore(editingCard.id, employeeData, vehicleData);
         setToastMessage(`Card updated successfully!`);
       } else {
         // Create new card
+        setLoadingMessage("Creating new card...");
         const cardId = await saveCardToFirestore(employeeData, vehicleData);
         setToastMessage(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`);
         // Clear localStorage after successful save
@@ -332,6 +336,9 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
           onClose={() => setShowPreview(false)}
         />
       )}
+
+      {/* Global Loader */}
+      {isSaving && <Loader message={loadingMessage} />}
     </>
   );
 };

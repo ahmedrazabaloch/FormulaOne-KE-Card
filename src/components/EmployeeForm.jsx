@@ -1,4 +1,25 @@
 const EmployeeForm = ({ onChange, errors = {}, values = {} }) => {
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const formatMonthYear = (value) => {
+    // value is YYYY-MM from <input type="month">
+    if (!value) return "";
+    const [y, m] = value.split("-").map(Number);
+    const month = monthNames[(m || 1) - 1];
+    return `${month}-${y}`;
+  };
+
+  const addOneYear = (value) => {
+    if (!value) return "";
+    const [y, m] = value.split("-").map(Number);
+    const date = new Date(y, (m || 1) - 1, 1);
+    date.setFullYear(date.getFullYear() + 1);
+    const fy = date.getFullYear();
+    const fm = date.getMonth() + 1; // 1-12
+    const mm = fm.toString().padStart(2, "0");
+    return formatMonthYear(`${fy}-${mm}`);
+  };
+
   const handleChange = (e) => {
     onChange((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -61,21 +82,50 @@ const EmployeeForm = ({ onChange, errors = {}, values = {} }) => {
           ["CNIC No", "cnic", "text"],
           ["Licence No", "licenceNo", "text"],
           ["Licence Category", "licenceCategory", "text"],
-          ["Licence Validity", "licenceValidity", "text"],
-          ["Date of Issue", "dateOfIssue", "date"],
-          ["Valid Upto", "validUpto", "date"],
+          ["Licence Validity", "licenceValidity", "month"],
+          ["Date of Issue", "dateOfIssue", "month"],
+          ["Valid Upto", "validUpto", "month"],
         ].map(([label, name, type]) => (
           <div className="field" key={name}>
             <label>{label}</label>
-            <input 
-              type={type}
-              name={name} 
-              value={values[name] || ''}
-              onChange={name === 'cnic' ? handleCNICChange : handleChange} 
-              className={errors[name] ? 'input-error' : ''} 
-              placeholder={name === 'cnic' ? '00000-0000000-0' : type === 'date' ? 'yyyy-mm-dd' : ''}
-              maxLength={name === 'cnic' ? 15 : undefined}
-            />
+            {type !== 'month' ? (
+              <input 
+                type={type}
+                name={name} 
+                value={values[name] || ''}
+                onChange={name === 'cnic' ? handleCNICChange : handleChange} 
+                className={errors[name] ? 'input-error' : ''} 
+                placeholder={name === 'cnic' ? '00000-0000000-0' : ''}
+                maxLength={name === 'cnic' ? 15 : undefined}
+              />
+            ) : (
+              <input
+                type="month"
+                name={name}
+                value={(values[name] && /^[A-Za-z]{3}-\d{4}$/.test(values[name])) ?
+                  // convert display MMM-YYYY back to YYYY-MM for input control
+                  (() => {
+                    const [mm, yy] = values[name].split('-');
+                    const idx = monthNames.indexOf(mm) + 1;
+                    const m2 = idx.toString().padStart(2, '0');
+                    return `${yy}-${m2}`;
+                  })() : (values[name] || '')}
+                onChange={(e) => {
+                  const raw = e.target.value; // YYYY-MM
+                  const formatted = formatMonthYear(raw);
+                  // auto set counterparts
+                  if (e.target.name === 'dateOfIssue') {
+                    const autoValid = addOneYear(raw);
+                    onChange(prev => ({ ...prev, dateOfIssue: formatted, validUpto: autoValid }));
+                  } else if (e.target.name === 'validUpto') {
+                    onChange(prev => ({ ...prev, validUpto: formatted }));
+                  } else if (e.target.name === 'licenceValidity') {
+                    onChange(prev => ({ ...prev, licenceValidity: formatted }));
+                  }
+                }}
+                className={errors[name] ? 'input-error' : ''}
+              />
+            )}
           </div>
         ))}
       </div>

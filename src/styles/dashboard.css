@@ -152,7 +152,7 @@
 
 .cards-table th {
   padding: 16px;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   font-size: 14px;
   text-transform: uppercase;
@@ -173,6 +173,7 @@
   font-size: 14px;
   color: #333;
   vertical-align: middle;
+  text-align: center;
 }
 
 .cards-table td.actions {
@@ -231,6 +232,135 @@
 .btn-edit:hover {
   background: #5568d3;
   transform: scale(1.05);
+}
+
+.btn-delete {
+  background: #e53935;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  margin-left: 8px;
+}
+
+.btn-delete:hover {
+  background: #d32f2f;
+  transform: scale(1.05);
+}
+
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+.delete-modal-header {
+  background: #e53935;
+  color: white;
+  padding: 20px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.delete-modal-header .modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.delete-modal-header .modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.delete-modal-body {
+  padding: 30px;
+  text-align: center;
+}
+
+.delete-modal-body p {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.delete-modal-body strong {
+  display: block;
+  font-size: 20px;
+  color: #e53935;
+  margin: 20px 0;
+  font-weight: 600;
+}
+
+.delete-modal-body .warning-text {
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 20px;
+}
+
+.delete-modal-actions {
+  padding: 20px 30px 30px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.btn-cancel {
+  background: #666;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.btn-cancel:hover {
+  background: #555;
+  transform: translateY(-2px);
+}
+
+.btn-confirm-delete {
+  background: #e53935;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.btn-confirm-delete:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
 }
 
 /* Modal Styles */
@@ -339,10 +469,51 @@
   }
 
   .btn-view,
-  .btn-edit {
-    padding: 6px 12px;
-    font-size: 12px;
+  .btn-edit,
+  .btn-delete {
+    padding: 6px 10px;
+    font-size: 11px;
     margin-left: 4px;
+    margin-bottom: 4px;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+  }
+
+  .delete-confirm-modal {
+    width: 95%;
+    max-width: 400px;
+  }
+
+  .delete-modal-header h3 {
+    font-size: 18px;
+  }
+
+  .delete-modal-body {
+    padding: 20px;
+  }
+
+  .delete-modal-body p {
+    font-size: 14px;
+  }
+
+  .delete-modal-body strong {
+    font-size: 18px;
+  }
+
+  .delete-modal-actions {
+    padding: 15px 20px 20px;
+    flex-direction: column;
+  }
+
+  .btn-cancel,
+  .btn-confirm-delete {
+    width: 100%;
+    padding: 12px;
   }
 
   .modal-overlay {
@@ -392,9 +563,54 @@
   }
 
   .btn-view,
-  .btn-edit {
-    padding: 5px 10px;
-    font-size: 11px;
+  .btn-edit,
+  .btn-delete {
+    padding: 5px 8px;
+    font-size: 10px;
+    margin-left: 3px;
+    margin-bottom: 4px;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+  }
+
+  .delete-confirm-modal {
+    width: 95%;
+  }
+
+  .delete-modal-header {
+    padding: 15px;
+  }
+
+  .delete-modal-header h3 {
+    font-size: 16px;
+  }
+
+  .delete-modal-body {
+    padding: 20px 15px;
+  }
+
+  .delete-modal-body p {
+    font-size: 13px;
+  }
+
+  .delete-modal-body strong {
+    font-size: 16px;
+    margin: 15px 0;
+  }
+
+  .delete-modal-actions {
+    padding: 10px 15px 20px;
+  }
+
+  .btn-cancel,
+  .btn-confirm-delete {
+    padding: 10px;
+    font-size: 14px;
   }
 }
 

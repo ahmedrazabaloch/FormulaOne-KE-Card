@@ -1,41 +1,60 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { deleteCardFromFirestore } from "../services/firestoreService";
 import CardPreview from "../components/CardPreview";
+import Loader from "../components/Loader";
 import "../styles/dashboard.css";
 import logo from "../assets/Icon.png";
 
-const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard }) => {
-  const [cards, setCards] = useState(cachedCards || []);
-  const [loading, setLoading] = useState(!cachedCards);
+const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards }) => {
+  const [cards, setCards] = useState([]);
   const [error, setError] = useState("");
-  const [selectedCard, setSelectedCard] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   const searchTimeout = useRef(null);
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, cardId: null, cardName: "" });
 
   useEffect(() => {
-    if (!cachedCards) {
-      fetchCards();
+    const init = async () => {
+      if (cachedCards && Array.isArray(cachedCards) && cachedCards.length > 0) {
+        setCards(cachedCards);
+        return;
+      }
+      await fetchCards();
+    };
+    init();
+    // Watch cachedCards updates
+  }, []);
+
+  useEffect(() => {
+    if (cachedCards && Array.isArray(cachedCards)) {
+      setCards(cachedCards);
     }
   }, [cachedCards]);
 
   const fetchCards = async () => {
     try {
       setLoading(true);
+      setLoadingMessage("Loading cards...");
       const cardsRef = collection(db, "cards");
       const q = query(cardsRef, orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
-      
-      const cardsData = snapshot.docs.map(doc => ({
+
+      const cardsData = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
-      
+
       setCards(cardsData);
-      setCachedCards(cardsData); // Cache in parent
+      if (typeof setCachedCards === "function") {
+        setCachedCards(cardsData);
+      }
       setError("");
     } catch (err) {
       console.error("Error fetching cards:", err);
@@ -52,7 +71,7 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
     }
     searchTimeout.current = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setCurrentPage(1); // Reset to first page on search
+      setCurrentPage(1);
     }, 300);
 
     return () => {
@@ -70,11 +89,39 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
     setSelectedCard(null);
   };
 
+  const handleDeleteCard = (cardId, cardName) => {
+    setDeleteConfirm({ show: true, cardId, cardName });
+  };
+
+  const confirmDelete = async () => {
+    const { cardId, cardName } = deleteConfirm;
+    setDeleteConfirm({ show: false, cardId: null, cardName: "" });
+    setLoading(true);
+    setLoadingMessage(`Deleting ${cardName}'s card...`);
+
+    try {
+      await deleteCardFromFirestore(cardId);
+      const updatedCards = cards.filter((card) => card.id !== cardId);
+      setCards(updatedCards);
+      if (typeof setCachedCards === "function") {
+        setCachedCards(updatedCards);
+      }
+    } catch (err) {
+      console.error("Error deleting card:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm({ show: false, cardId: null, cardName: "" });
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString('en-GB');
+      return date.toLocaleDateString("en-GB");
     } catch {
       return "Invalid Date";
     }
@@ -83,7 +130,7 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
   // Filter cards based on debounced search term
   const filteredCards = cards.filter((card) => {
     if (!debouncedSearch) return true;
-    
+
     const search = debouncedSearch.toLowerCase();
     return (
       card.serialNo?.toLowerCase().includes(search) ||
@@ -105,47 +152,13 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  if (loading) {
-    return (
-      <div className="dashboard">
-        <div className="dashboard-header">
-          <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
-            <img src={logo} alt="F1 Logo" className="dashboard-logo" />
-            <h1>F1 Employee Cards</h1>
-          </div>
-          <button className="btn-primary" onClick={onNavigateToCreate}>
-            ➕ Create New Card
-          </button>
-        </div>
-        <div className="loading">Loading cards...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard">
-        <div className="dashboard-header">
-          <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
-            <img src={logo} alt="F1 Logo" className="dashboard-logo" />
-            <h1>Office Duty Cards</h1>
-          </div>
-          <button className="btn-primary" onClick={onNavigateToCreate}>
-            ➕ Create New Card
-          </button>
-        </div>
-        <div className="error-message">{error}</div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
+        <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: "pointer" }}>
           <img src={logo} alt="F1 Logo" className="dashboard-logo" />
           <h1>Office Duty Cards</h1>
         </div>
@@ -154,7 +167,6 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="search-container">
         <input
           type="text"
@@ -164,9 +176,7 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
           onChange={(e) => setSearchTerm(e.target.value)}
         />
         {searchTerm && (
-          <button className="clear-search" onClick={() => setSearchTerm("")}>
-            ✕
-          </button>
+          <button className="clear-search" onClick={() => setSearchTerm("")}>✕</button>
         )}
       </div>
 
@@ -212,19 +222,18 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
                   <td>{card.vehicleNo}</td>
                   <td>{formatDate(card.createdAt)}</td>
                   <td className="actions">
-                    <button 
-                      className="btn-view" 
-                      onClick={() => handleView(card)}
-                      title="View & Download PDF"
-                    >
+                    <button className="btn-view" onClick={() => handleView(card)} title="View & Download PDF">
                       👁️ View
                     </button>
-                    <button 
-                      className="btn-edit" 
-                      onClick={() => onEditCard && onEditCard(card)}
-                      title="Edit Card"
-                    >
+                    <button className="btn-edit" onClick={() => onEditCard && onEditCard(card)} title="Edit Card">
                       ✏️ Edit
+                    </button>
+                    <button
+                      className="btn-delete"
+                      onClick={() => handleDeleteCard(card.id, card.employeeName)}
+                      title="Delete Card"
+                    >
+                      🗑️ Delete
                     </button>
                   </td>
                 </tr>
@@ -234,15 +243,14 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
         </div>
       )}
 
-      {/* Pagination */}
       {filteredCards.length > 0 && (
         <div className="pagination-container">
           <div className="pagination-info">
             Showing {startIndex + 1} to {Math.min(endIndex, filteredCards.length)} of {filteredCards.length} entries
           </div>
           <div className="pagination-controls">
-            <button 
-              className="pagination-btn" 
+            <button
+              className="pagination-btn"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
             >
@@ -250,16 +258,11 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
             </button>
             {[...Array(totalPages)].map((_, index) => {
               const page = index + 1;
-              // Show first page, last page, current page, and pages around current
-              if (
-                page === 1 ||
-                page === totalPages ||
-                (page >= currentPage - 1 && page <= currentPage + 1)
-              ) {
+              if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
                 return (
                   <button
                     key={page}
-                    className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                    className={`pagination-btn ${currentPage === page ? "active" : ""}`}
                     onClick={() => handlePageChange(page)}
                   >
                     {page}
@@ -270,8 +273,8 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
               }
               return null;
             })}
-            <button 
-              className="pagination-btn" 
+            <button
+              className="pagination-btn"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
@@ -284,7 +287,7 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
       {selectedCard && (
         <div className="modal-overlay" onClick={handleClosePreview}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <CardPreview 
+            <CardPreview
               isModal={true}
               onClose={handleClosePreview}
               employeeData={{
@@ -298,7 +301,7 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
                 licenceValidity: selectedCard.licenceValidity,
                 dateOfIssue: selectedCard.dateOfIssue,
                 validUpto: selectedCard.validUpto,
-                photo: selectedCard.photoUrl
+                photo: selectedCard.photoUrl,
               }}
               vehicleData={{
                 vehicleNo: selectedCard.vehicleNo,
@@ -308,12 +311,34 @@ const Dashboard = ({ onNavigateToCreate, cachedCards, setCachedCards, onEditCard
                 departureBC: selectedCard.departureBC,
                 inspectionId: selectedCard.inspectionId,
                 validFrom: selectedCard.validFrom,
-                validTo: selectedCard.validTo
+                validTo: selectedCard.validTo,
               }}
             />
           </div>
         </div>
       )}
+
+      {deleteConfirm.show && (
+        <div className="modal-overlay" onClick={cancelDelete}>
+          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-modal-header">
+              <h3>⚠️ Confirm Delete</h3>
+              <button className="modal-close" onClick={cancelDelete}>✕</button>
+            </div>
+            <div className="delete-modal-body">
+              <p>Are you sure you want to delete the card for:</p>
+              <strong>{deleteConfirm.cardName}</strong>
+              <p className="warning-text">This action cannot be undone.</p>
+            </div>
+            <div className="delete-modal-actions">
+              <button className="btn-cancel" onClick={cancelDelete}>Cancel</button>
+              <button className="btn-confirm-delete" onClick={confirmDelete}>🗑️ Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading && <Loader message={loadingMessage} />}
     </div>
   );
 };
