@@ -4,12 +4,13 @@ import { db } from "../config/firebase";
 import { deleteCardFromFirestore } from "../services/firestoreService";
 import CardPreview from "../components/CardPreview";
 import Loader from "../components/Loader";
+import { useNotification } from "../context/useNotification";
 import "../styles/dashboard.css";
 import logo from "../assets/Icon.png";
 
 const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards }) => {
+  const { addNotification } = useNotification();
   const [cards, setCards] = useState([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,10 +56,9 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
       if (typeof setCachedCards === "function") {
         setCachedCards(cardsData);
       }
-      setError("");
     } catch (err) {
       console.error("Error fetching cards:", err);
-      setError("Failed to load cards. Check Firestore rules.");
+      addNotification("Failed to load cards. Check Firestore rules.", "error", 4000);
     } finally {
       setLoading(false);
     }
@@ -106,8 +106,10 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
       if (typeof setCachedCards === "function") {
         setCachedCards(updatedCards);
       }
+      addNotification("Card deleted successfully!", "success", 3000);
     } catch (err) {
       console.error("Error deleting card:", err);
+      addNotification("Failed to delete card. Please try again.", "error", 4000);
     } finally {
       setLoading(false);
     }

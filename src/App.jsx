@@ -1,6 +1,8 @@
 import { useState } from "react";
 import CreateCard from "./pages/CreateCard";
 import Dashboard from "./pages/Dashboard";
+import { NotificationProvider } from "./context/NotificationContext";
+import Notification from "./components/Notification";
 
 function App() {
   const [currentPage, setCurrentPage] = useState("dashboard"); // Start with dashboard
@@ -32,22 +34,25 @@ function App() {
   };
 
   return (
-    <>
-      {currentPage === "dashboard" ? (
-        <Dashboard 
-          onNavigateToCreate={handleNavigateToCreate}
-          cachedCards={cachedCards}
-          setCachedCards={setCachedCards}
-          onEditCard={handleEditCard}
-        />
-      ) : (
-        <CreateCard 
-          onNavigateToDashboard={handleNavigateToDashboard}
-          onCardCreated={handleCardCreated}
-          editingCard={editingCard}
-        />
-      )}
-    </>
+    <NotificationProvider>
+      <>
+        {currentPage === "dashboard" ? (
+          <Dashboard 
+            onNavigateToCreate={handleNavigateToCreate}
+            cachedCards={cachedCards}
+            setCachedCards={setCachedCards}
+            onEditCard={handleEditCard}
+          />
+        ) : (
+          <CreateCard 
+            onNavigateToDashboard={handleNavigateToDashboard}
+            onCardCreated={handleCardCreated}
+            editingCard={editingCard}
+          />
+        )}
+        <Notification />
+      </>
+    </NotificationProvider>
   );
 }
 

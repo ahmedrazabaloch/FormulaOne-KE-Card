@@ -106,14 +106,16 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
   };
 
   return (
-    <div className={isModal ? "preview-modal-content" : "preview-page"}>
-      <div className="preview-actions">
-        <button onClick={downloadPDF}>Download PDF</button>
-        <button onClick={onClose}>Close</button>
-      </div>
-      <div className={isModal ? "preview-wrapper-modal" : "preview-wrapper"}>
-        <CardFront data={employeeData} inspectionId={vehicleData.inspectionId} orientation={"portrait"} />
-        <CardBack data={backData} orientation={"portrait"} />
+    <div className="preview-modal-overlay">
+      <div className="preview-modal">
+        <div className="preview-actions">
+          <button onClick={downloadPDF}>Download PDF</button>
+          <button onClick={onClose}>Close</button>
+        </div>
+        <div className="preview-wrapper-modal">
+          <CardFront data={employeeData} inspectionId={vehicleData.inspectionId} orientation={"portrait"} />
+          <CardBack data={backData} orientation={"portrait"} />
+        </div>
       </div>
     </div>
   );

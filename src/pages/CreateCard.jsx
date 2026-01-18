@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import EmployeeForm from "../components/EmployeeForm";
 import VehicleForm from "../components/VehicleForm";
 import CardPreview from "../components/CardPreview";
-import Toast from "../components/Toast";
 import Loader from "../components/Loader";
+import { useNotification } from "../context/useNotification";
 import { saveCardToFirestore, updateCardInFirestore } from "../services/firestoreService";
 import logo from "../assets/Icon.png";
 
@@ -36,13 +36,14 @@ const REQUIRED_VEHICLE_FIELDS = [
 ];
 
 const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
+  const { addNotification } = useNotification();
   const [employeeData, setEmployeeData] = useState({});
   const [vehicleData, setVehicleData] = useState({});
   const [showPreview, setShowPreview] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [employeeErrors, setEmployeeErrors] = useState({});
   const [vehicleErrors, setVehicleErrors] = useState({});
-  const [toastMessage, setToastMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const isEditing = !!editingCard;
 
@@ -214,10 +215,12 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
     setEmployeeErrors(empErr);
     setVehicleErrors(vehErr);
     
-    // Show first 3 error messages
+    // Show first 3 error messages as notifications
     if (!ok && errorMessages.length > 0) {
       const displayMessages = errorMessages.slice(0, 3);
-      setToastMessage(displayMessages.join(" • "));
+      displayMessages.forEach(msg => {
+        addNotification(msg, "error", 4000);
+      });
     }
     
     return ok;
@@ -225,31 +228,40 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
 
   const handlePreview = async () => {
     if (!await validate()) {
-      // Error message already set in validate()
+      // Notifications already shown in validate()
       return;
     }
-    setToastMessage("");
-    setShowPreview(true);
+    setIsPreviewLoading(true);
+    setLoadingMessage("Generating preview...");
+    // Simulate small delay for better UX
+    setTimeout(() => {
+      setShowPreview(true);
+      setIsPreviewLoading(false);
+    }, 300);
   };
 
   const handleSaveToFirestore = async () => {
+    // Show loader immediately
+    setIsSaving(true);
+    setLoadingMessage("Validating data...");
+    
     if (!await validate()) {
-      // Error message already set in validate()
+      // Notifications already shown in validate()
+      setIsSaving(false);
       return;
     }
 
-    setIsSaving(true);
     try {
       if (isEditing) {
         // Update existing card
         setLoadingMessage("Updating card...");
         await updateCardInFirestore(editingCard.id, employeeData, vehicleData);
-        setToastMessage(`Card updated successfully!`);
+        addNotification("Card updated successfully!", "success", 3000);
       } else {
         // Create new card
         setLoadingMessage("Creating new card...");
         const cardId = await saveCardToFirestore(employeeData, vehicleData);
-        setToastMessage(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`);
+        addNotification(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`, "success", 3000);
         // Clear localStorage after successful save
         localStorage.removeItem("employeeData");
         localStorage.removeItem("vehicleData");
@@ -269,7 +281,7 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
         }
       }, 1500);
     } catch (error) {
-      setToastMessage("Error saving card. Please try again.");
+      addNotification("Error saving card. Please try again.", "error", 4000);
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -324,21 +336,19 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
         </div>
       </main>
 
-      {/* TOAST */}
-      <Toast message={toastMessage} onClose={() => setToastMessage("")} />
-
       {/* PREVIEW */}
       {showPreview && (
         <CardPreview
           employeeData={employeeData}
           vehicleData={vehicleData}
           orientation="portrait"
+          isModal={true}
           onClose={() => setShowPreview(false)}
         />
       )}
 
       {/* Global Loader */}
-      {isSaving && <Loader message={loadingMessage} />}
+      {(isSaving || isPreviewLoading) && <Loader message={loadingMessage} />}
     </>
   );
 };
