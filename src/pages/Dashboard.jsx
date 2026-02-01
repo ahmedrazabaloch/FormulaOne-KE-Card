@@ -5,7 +5,6 @@ import { deleteCardFromFirestore } from "../services/firestoreService";
 import CardPreview from "../components/CardPreview";
 import Loader from "../components/Loader";
 import { useNotification } from "../context/useNotification";
-import "../styles/dashboard.css";
 import logo from "../assets/Icon.png";
 
 const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards }) => {

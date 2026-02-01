@@ -1,4 +1,8 @@
+import { useState } from "react";
+import CameraCapture from "./CameraCapture";
+
 const EmployeeForm = ({ onChange, errors = {}, values = {} }) => {
+  const [showCamera, setShowCamera] = useState(false);
   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   const formatMonthYear = (value) => {
@@ -48,28 +52,41 @@ const EmployeeForm = ({ onChange, errors = {}, values = {} }) => {
   };
 
   return (
+    <>
     <div className="card-box">
       <h3>Employee Card (Front)</h3>
       <div className="field">
         <label>Employee Photo</label>
         <div className="file-input-row">
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = () => {
-                onChange((prev) => ({ ...prev, photo: reader.result }));
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-        />
-        {values.photo && (
-          <img src={values.photo} alt="Preview" className="thumb-preview" />
-        )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  onChange((prev) => ({ ...prev, photo: reader.result }));
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowCamera(true)}
+            className="camera-button"
+            title="Open camera to capture photo"
+          >
+            <svg className="camera-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>Take Photo</span>
+          </button>
+          {values.photo && (
+            <img src={values.photo} alt="Preview" className="thumb-preview" />
+          )}
         </div>
       </div>
 
@@ -130,6 +147,16 @@ const EmployeeForm = ({ onChange, errors = {}, values = {} }) => {
         ))}
       </div>
     </div>
+
+    {showCamera && (
+      <CameraCapture
+        onCapture={(imageData) => {
+          onChange((prev) => ({ ...prev, photo: imageData }));
+        }}
+        onClose={() => setShowCamera(false)}
+      />
+    )}
+  </>
   );
 };
 

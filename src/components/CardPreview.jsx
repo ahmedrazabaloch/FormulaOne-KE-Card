@@ -4,6 +4,45 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portrait", isModal = false }) => {
+  
+  // Helper function to create a cropped canvas from image
+  const createCroppedImage = (imgElement, targetWidth, targetHeight) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const imgAspect = img.width / img.height;
+        const targetAspect = targetWidth / targetHeight;
+        
+        let sx, sy, sWidth, sHeight;
+        
+        if (imgAspect > targetAspect) {
+          // Image is wider - crop sides
+          sHeight = img.height;
+          sWidth = img.height * targetAspect;
+          sx = (img.width - sWidth) / 2;
+          sy = 0;
+        } else {
+          // Image is taller - crop top/bottom
+          sWidth = img.width;
+          sHeight = img.width / targetAspect;
+          sx = 0;
+          sy = (img.height - sHeight) / 2;
+        }
+        
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = imgElement.src;
+    });
+  };
+  
   const downloadPDF = async () => {
     const cards = document.querySelectorAll(".card");
 
@@ -47,42 +86,63 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
+        font-family: Arial, Helvetica, sans-serif;
       `;
       
-      // Fix photo size in pixels
-      const photo = clone.querySelector(".employee-photo");
-      if (photo) {
-        const photoW = 20 * MM_TO_PX;
-        const photoH = 24 * MM_TO_PX;
-        photo.style.cssText = `
-          width: ${photoW}px !important;
-          height: ${photoH}px !important;
-          min-width: ${photoW}px !important;
-          min-height: ${photoH}px !important;
-          max-width: ${photoW}px !important;
-          max-height: ${photoH}px !important;
-          object-fit: cover !important;
-          object-position: center !important;
-          display: block !important;
-          margin: ${3 * MM_TO_PX}px auto !important;
-          border: 2px solid #333 !important;
-          border-radius: 3px !important;
-          box-sizing: border-box !important;
-        `;
-      }
+      // Fix all images - ensure proper sizing and cropping
+      const images = clone.querySelectorAll("img");
+      const imagePromises = [];
+      
+      images.forEach((img) => {
+        if (img.classList.contains("employee-photo")) {
+          // Employee photo - create actual cropped image
+          const photoW = 20 * MM_TO_PX;
+          const photoH = 24 * MM_TO_PX;
+          
+          const originalImg = cards[i].querySelector('.employee-photo');
+          if (originalImg) {
+            const promise = createCroppedImage(originalImg, photoW, photoH).then(croppedSrc => {
+              img.src = croppedSrc;
+              img.style.cssText = `
+                width: ${photoW}px !important;
+                height: ${photoH}px !important;
+                object-fit: contain !important;
+                display: block !important;
+                margin: ${3 * MM_TO_PX}px auto !important;
+                border: 2px solid #333 !important;
+                border-radius: 3px !important;
+                box-sizing: border-box !important;
+                flex-shrink: 0 !important;
+              `;
+            });
+            imagePromises.push(promise);
+          }
+        } else if (img.classList.contains("card-logo") || img.classList.contains("authority-signature")) {
+          // Logos and signatures - auto sizing
+          img.style.cssText = `
+            object-fit: contain !important;
+            object-position: center !important;
+            display: block !important;
+          `;
+        }
+      });
       
       wrapper.appendChild(clone);
       
-      // Wait for render
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for all image processing to complete
+      await Promise.all(imagePromises);
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Capture
+      // Capture with high quality
       const canvas = await html2canvas(wrapper, {
-        scale: 1,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
+        imageTimeout: 10000,
+        windowWidth: h * MM_TO_PX,
+        windowHeight: w * MM_TO_PX,
       });
       
       document.body.removeChild(wrapper);
