@@ -4,10 +4,11 @@ import { db } from "../config/firebase";
 import { deleteCardFromFirestore } from "../services/firestoreService";
 import CardPreview from "../components/CardPreview";
 import Loader from "../components/Loader";
+import Navbar from "../components/Navbar";
 import { useNotification } from "../context/useNotification";
-import logo from "../assets/Icon.png";
+import { Users, Calendar, FileText, Search, X, Eye, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
-const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards }) => {
+const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards, onLogout, user }) => {
   const { addNotification } = useNotification();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,8 +56,7 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
       if (typeof setCachedCards === "function") {
         setCachedCards(cardsData);
       }
-    } catch (err) {
-      console.error("Error fetching cards:", err);
+    } catch {
       addNotification("Failed to load cards. Check Firestore rules.", "error", 4000);
     } finally {
       setLoading(false);
@@ -106,8 +106,7 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
         setCachedCards(updatedCards);
       }
       addNotification("Card deleted successfully!", "success", 3000);
-    } catch (err) {
-      console.error("Error deleting card:", err);
+    } catch {
       addNotification("Failed to delete card. Please try again.", "error", 4000);
     } finally {
       setLoading(false);
@@ -158,27 +157,62 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
 
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <div className="header-title" onClick={() => window.location.reload()} style={{ cursor: "pointer" }}>
-          <img src={logo} alt="F1 Logo" className="dashboard-logo" />
-          <h1>Office Duty Cards</h1>
+      <Navbar
+        onNavigateToCreate={onNavigateToCreate}
+        onLogout={onLogout}
+        user={user}
+        showCreate
+      />
+
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            <Users size={22} strokeWidth={2} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{cards.length}</div>
+            <div className="stat-label">Total Cards</div>
+          </div>
         </div>
-        <button className="btn-primary" onClick={onNavigateToCreate}>
-          ➕ Create New Card
-        </button>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+            <Calendar size={22} strokeWidth={2} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{filteredCards.length}</div>
+            <div className="stat-label">Search Results</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+            <FileText size={22} strokeWidth={2} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{totalPages}</div>
+            <div className="stat-label">Total Pages</div>
+          </div>
+        </div>
       </div>
 
       <div className="search-container">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="🔍 Search by Serial No, Name, CNIC, Vehicle No, Employee Code..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {searchTerm && (
-          <button className="clear-search" onClick={() => setSearchTerm("")}>✕</button>
-        )}
+        <div className="search-wrapper">
+          <Search className="search-icon" size={20} />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by Serial No, Name, CNIC, Vehicle No, Employee Code..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="clear-search" onClick={() => setSearchTerm("")}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {cards.length === 0 ? (
@@ -197,12 +231,9 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
             <thead>
               <tr>
                 <th>Photo</th>
-                <th>Serial No</th>
-                <th>Employee Code</th>
                 <th>Employee Name</th>
-                <th>CNIC</th>
-                <th>Vehicle No</th>
-                <th>Created Date</th>
+                <th>Serial Number</th>
+                <th>CNIC Number</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -216,25 +247,22 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
                       <div className="no-photo">📷</div>
                     )}
                   </td>
-                  <td>{card.serialNo}</td>
-                  <td>{card.employeeCode}</td>
                   <td>{card.employeeName}</td>
+                  <td>{card.serialNo}</td>
                   <td>{card.cnic}</td>
-                  <td>{card.vehicleNo}</td>
-                  <td>{formatDate(card.createdAt)}</td>
                   <td className="actions">
-                    <button className="btn-view" onClick={() => handleView(card)} title="View & Download PDF">
-                      👁️ View
+                    <button className="btn-action btn-view" onClick={() => handleView(card)} title="View & Download PDF">
+                      <Eye size={16} strokeWidth={2} />
                     </button>
-                    <button className="btn-edit" onClick={() => onEditCard && onEditCard(card)} title="Edit Card">
-                      ✏️ Edit
+                    <button className="btn-action btn-edit" onClick={() => onEditCard && onEditCard(card)} title="Edit Card">
+                      <Pencil size={16} strokeWidth={2} />
                     </button>
                     <button
-                      className="btn-delete"
+                      className="btn-action btn-delete"
                       onClick={() => handleDeleteCard(card.id, card.employeeName)}
                       title="Delete Card"
                     >
-                      🗑️ Delete
+                      <Trash2 size={16} strokeWidth={2} />
                     </button>
                   </td>
                 </tr>
@@ -255,7 +283,7 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
             >
-              ← Previous
+              <ChevronLeft size={16} /> Previous
             </button>
             {[...Array(totalPages)].map((_, index) => {
               const page = index + 1;
@@ -279,7 +307,7 @@ const Dashboard = ({ onNavigateToCreate, onEditCard, cachedCards, setCachedCards
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
-              Next →
+              Next <ChevronRight size={16} />
             </button>
           </div>
         </div>

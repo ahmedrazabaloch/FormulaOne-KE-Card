@@ -1,79 +1,128 @@
+﻿import { formatMonthYear, addOneYear, displayToInputValue } from "../utils/dateFormatters";
+
+const FieldError = ({ errors, field }) => {
+  const msg = errors[field];
+  if (!msg) return null;
+  return <span className="field-error-msg">{msg}</span>;
+};
+
 const VehicleForm = ({ onChange, errors = {}, values = {} }) => {
-  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-  const formatMonthYear = (value) => {
-    if (!value) return "";
-    const [y, m] = value.split("-").map(Number);
-    const month = monthNames[(m || 1) - 1];
-    return `${month}-${y}`;
-  };
-
-  const addOneYear = (value) => {
-    if (!value) return "";
-    const [y, m] = value.split("-").map(Number);
-    const date = new Date(y, (m || 1) - 1, 1);
-    date.setFullYear(date.getFullYear() + 1);
-    const fy = date.getFullYear();
-    const fm = date.getMonth() + 1;
-    const mm = fm.toString().padStart(2, "0");
-    return formatMonthYear(`${fy}-${mm}`);
-  };
-
   const handleChange = (e) => {
-    onChange(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    onChange((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   return (
-    <div className="card-box">
-      <h3>Vehicle Card (Back)</h3>
+    <div className="vehicle-info-section">
+      <h3 className="section-title">Vehicle Information</h3>
 
-      <div className="grid">
-        {[
-          ["Vehicle No", "vehicleNo", "text"],
-          ["Vehicle Type", "vehicleType", "text"],
-          ["Shift Type", "shiftType", "text"],
-          ["Region", "region", "text"],
-          ["Departure / BC", "departureBC", "text"],
-          ["Inspection ID", "inspectionId", "text"],
-          ["Valid From", "validFrom", "month"],
-          ["Valid To", "validTo", "month"]
-        ].map(([label, name, type]) => (
-          <div className="field" key={name}>
-            <label>{label}</label>
-            {type !== 'month' ? (
-              <input 
-                type={type}
-                name={name} 
-                value={values[name] || ''}
-                onChange={handleChange} 
-                className={errors[name] ? 'input-error' : ''}
-              />
-            ) : (
-              <input
-                type="month"
-                name={name}
-                value={(values[name] && /^[A-Za-z]{3}-\d{4}$/.test(values[name])) ?
-                  (() => {
-                    const [mm, yy] = values[name].split('-');
-                    const idx = monthNames.indexOf(mm) + 1;
-                    const m2 = idx.toString().padStart(2, '0');
-                    return `${yy}-${m2}`;
-                  })() : (values[name] || '')}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const formatted = formatMonthYear(raw);
-                  if (e.target.name === 'validFrom') {
-                    const autoTo = addOneYear(raw);
-                    onChange(prev => ({ ...prev, validFrom: formatted, validTo: autoTo }));
-                  } else {
-                    onChange(prev => ({ ...prev, validTo: formatted }));
-                  }
-                }}
-                className={errors[name] ? 'input-error' : ''}
-              />
-            )}
+      <div className="form-grid-single">
+        <div className="form-row">
+          <div className="form-field">
+            <label>Vehicle No <span className="required">*</span></label>
+            <input
+              type="text"
+              name="vehicleNo"
+              value={values.vehicleNo || ""}
+              onChange={handleChange}
+              className={errors.vehicleNo ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="vehicleNo" />
           </div>
-        ))}
+          <div className="form-field">
+            <label>Vehicle Type <span className="required">*</span></label>
+            <input
+              type="text"
+              name="vehicleType"
+              value={values.vehicleType || ""}
+              onChange={handleChange}
+              className={errors.vehicleType ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="vehicleType" />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label>Shift Type <span className="required">*</span></label>
+            <input
+              type="text"
+              name="shiftType"
+              value={values.shiftType || ""}
+              onChange={handleChange}
+              className={errors.shiftType ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="shiftType" />
+          </div>
+          <div className="form-field">
+            <label>Region <span className="required">*</span></label>
+            <input
+              type="text"
+              name="region"
+              value={values.region || ""}
+              onChange={handleChange}
+              className={errors.region ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="region" />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label>Departure / BC <span className="required">*</span></label>
+            <input
+              type="text"
+              name="departureBC"
+              value={values.departureBC || ""}
+              onChange={handleChange}
+              className={errors.departureBC ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="departureBC" />
+          </div>
+          <div className="form-field">
+            <label>Inspection ID <span className="required">*</span></label>
+            <input
+              type="text"
+              name="inspectionId"
+              value={values.inspectionId || ""}
+              onChange={handleChange}
+              className={errors.inspectionId ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="inspectionId" />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-field">
+            <label>Valid From <span className="required">*</span></label>
+            <input
+              type="month"
+              name="validFrom"
+              value={displayToInputValue(values.validFrom)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const formatted = formatMonthYear(raw);
+                const autoTo = addOneYear(raw);
+                onChange((prev) => ({ ...prev, validFrom: formatted, validTo: autoTo }));
+              }}
+              className={errors.validFrom ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="validFrom" />
+          </div>
+          <div className="form-field">
+            <label>Valid To <span className="required">*</span></label>
+            <input
+              type="month"
+              name="validTo"
+              value={displayToInputValue(values.validTo)}
+              onChange={(e) => {
+                const formatted = formatMonthYear(e.target.value);
+                onChange((prev) => ({ ...prev, validTo: formatted }));
+              }}
+              className={errors.validTo ? "input-error" : ""}
+            />
+            <FieldError errors={errors} field="validTo" />
+          </div>
+        </div>
       </div>
     </div>
   );

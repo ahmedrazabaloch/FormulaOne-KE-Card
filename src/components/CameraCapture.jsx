@@ -24,8 +24,7 @@ const CameraCapture = ({ onCapture, onClose }) => {
         }
         setError(null);
         setIsLoading(false);
-      } catch (err) {
-        console.error("Camera error:", err);
+      } catch {
         setError("Unable to access camera. Check browser permissions.");
         setIsLoading(false);
       }

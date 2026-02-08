@@ -23,14 +23,12 @@ export const uploadImageToCloudinary = async (base64Image) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Cloudinary error details:", errorData);
       throw new Error(`Cloudinary upload failed: ${response.statusText} - ${errorData.error?.message || ''}`);
     }
 
     const data = await response.json();
     return data.secure_url; // Returns HTTPS URL
   } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
     throw error;
   }
 };
@@ -85,7 +83,6 @@ export const saveCardToFirestore = async (employeeData, vehicleData) => {
 
     return docRef.id;
   } catch (error) {
-    console.error("Error saving card to Firestore:", error);
     throw error;
   }
 };
@@ -139,7 +136,6 @@ export const updateCardInFirestore = async (cardId, employeeData, vehicleData) =
     const cardRef = doc(db, "cards", cardId);
     await updateDoc(cardRef, cardData);
   } catch (error) {
-    console.error("Error updating card in Firestore:", error);
     throw error;
   }
 };
@@ -154,7 +150,6 @@ export const deleteCardFromFirestore = async (cardId) => {
     const cardRef = doc(db, "cards", cardId);
     await deleteDoc(cardRef);
   } catch (error) {
-    console.error("Error deleting card from Firestore:", error);
     throw error;
   }
 };

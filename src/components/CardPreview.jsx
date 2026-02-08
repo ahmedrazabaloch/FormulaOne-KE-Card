@@ -44,7 +44,7 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
   };
   
   const downloadPDF = async () => {
-    const cards = document.querySelectorAll(".card");
+    const cards = document.querySelectorAll(".card, .card-modern");
 
     // Force portrait for PDF output
     const w = 85.6;
@@ -94,12 +94,12 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
       const imagePromises = [];
       
       images.forEach((img) => {
-        if (img.classList.contains("employee-photo")) {
+        if (img.classList.contains("employee-photo") || img.classList.contains("employee-photo-modern")) {
           // Employee photo - create actual cropped image
           const photoW = 20 * MM_TO_PX;
           const photoH = 24 * MM_TO_PX;
           
-          const originalImg = cards[i].querySelector('.employee-photo');
+          const originalImg = cards[i].querySelector('.employee-photo, .employee-photo-modern');
           if (originalImg) {
             const promise = createCroppedImage(originalImg, photoW, photoH).then(croppedSrc => {
               img.src = croppedSrc;
@@ -117,7 +117,7 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
             });
             imagePromises.push(promise);
           }
-        } else if (img.classList.contains("card-logo") || img.classList.contains("authority-signature")) {
+        } else if (img.classList.contains("card-logo") || img.classList.contains("card-logo-modern") || img.classList.contains("authority-signature") || img.classList.contains("authority-signature-modern")) {
           // Logos and signatures - auto sizing
           img.style.cssText = `
             object-fit: contain !important;

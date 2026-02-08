@@ -1,41 +1,13 @@
 import { useState, useEffect } from "react";
 import EmployeeForm from "../components/EmployeeForm";
-import VehicleForm from "../components/VehicleForm";
 import CardPreview from "../components/CardPreview";
 import Loader from "../components/Loader";
+import Navbar from "../components/Navbar";
 import { useNotification } from "../context/useNotification";
 import { saveCardToFirestore, updateCardInFirestore } from "../services/firestoreService";
-import logo from "../assets/Icon.png";
+import { validateFields, checkUniqueness } from "../utils/validators";
 
-// Pakistani CNIC Format: 00000-0000000-0 (5 digits, dash, 7 digits, dash, 1 digit)
-const CNIC_REGEX = /^\d{5}-\d{7}-\d{1}$/;
-
-const REQUIRED_EMPLOYEE_FIELDS = [
-  "serialNo",
-  "employeeCode",
-  "employeeName",
-  "designation",
-  "cnic",
-  "licenceNo",
-  "licenceCategory",
-  "licenceValidity",
-  "dateOfIssue",
-  "validUpto",
-  "photo",
-];
-
-const REQUIRED_VEHICLE_FIELDS = [
-  "vehicleNo",
-  "vehicleType",
-  "shiftType",
-  "region",
-  "departureBC",
-  "inspectionId",
-  "validFrom",
-  "validTo",
-];
-
-const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
+const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard, onLogout, user }) => {
   const { addNotification } = useNotification();
   const [employeeData, setEmployeeData] = useState({});
   const [vehicleData, setVehicleData] = useState({});
@@ -47,10 +19,9 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
   const [isSaving, setIsSaving] = useState(false);
   const isEditing = !!editingCard;
 
-  // Load from localStorage on mount or from editingCard
+  // Load from localStorage or editingCard on mount
   useEffect(() => {
     if (editingCard) {
-      // Load from editing card
       setEmployeeData({
         serialNo: editingCard.serialNo,
         employeeCode: editingCard.employeeCode,
@@ -63,7 +34,7 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
         dateOfIssue: editingCard.dateOfIssue,
         validUpto: editingCard.validUpto,
         photoUrl: editingCard.photoUrl,
-        photo: editingCard.photoUrl, // Set for display
+        photo: editingCard.photoUrl,
       });
       setVehicleData({
         vehicleNo: editingCard.vehicleNo,
@@ -76,164 +47,53 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
         validTo: editingCard.validTo,
       });
     } else {
-      // Load from localStorage
       try {
         const savedEmployee = localStorage.getItem("employeeData");
         const savedVehicle = localStorage.getItem("vehicleData");
-      if (savedEmployee) setEmployeeData(JSON.parse(savedEmployee));
-      if (savedVehicle) setVehicleData(JSON.parse(savedVehicle));
-      } catch (error) {
-        console.error("Error loading saved data:", error);
+        if (savedEmployee) setEmployeeData(JSON.parse(savedEmployee));
+        if (savedVehicle) setVehicleData(JSON.parse(savedVehicle));
+      } catch {
+        // Ignore corrupted localStorage
       }
     }
   }, [editingCard]);
 
-  // Save to localStorage whenever data changes
+  // Persist to localStorage
   useEffect(() => {
-    try {
-      if (Object.keys(employeeData).length > 0) {
-        localStorage.setItem("employeeData", JSON.stringify(employeeData));
-      }
-    } catch (error) {
-      console.error("Error saving to localStorage:", error);
+    if (Object.keys(employeeData).length > 0) {
+      try { localStorage.setItem("employeeData", JSON.stringify(employeeData)); } catch { /* noop */ }
     }
   }, [employeeData]);
 
   useEffect(() => {
-    try {
-      if (Object.keys(vehicleData).length > 0) {
-        localStorage.setItem("vehicleData", JSON.stringify(vehicleData));
-      }
-    } catch (error) {
-      console.error("Error saving to localStorage:", error);
+    if (Object.keys(vehicleData).length > 0) {
+      try { localStorage.setItem("vehicleData", JSON.stringify(vehicleData)); } catch { /* noop */ }
     }
   }, [vehicleData]);
 
   const validate = async () => {
-    const empErr = {};
-    const vehErr = {};
-    const errorMessages = [];
-    
-    // Field name mapping for user-friendly error messages
-    const fieldNames = {
-      photo: "Employee Photo",
-      serialNo: "Serial No",
-      employeeCode: "Employee Code",
-      employeeName: "Employee Name",
-      designation: "Designation",
-      cnic: "CNIC No",
-      licenceNo: "Licence No",
-      licenceCategory: "Licence Category",
-      licenceValidity: "Licence Validity",
-      dateOfIssue: "Date of Issue",
-      validUpto: "Valid Upto",
-      vehicleNo: "Vehicle No",
-      vehicleType: "Vehicle Type",
-      shiftType: "Shift Type",
-      region: "Region",
-      departureBC: "Departure / BC",
-      inspectionId: "Inspection ID",
-      validFrom: "Valid From",
-      validTo: "Valid To"
-    };
-    
-    // Check required employee fields
-    for (let field of REQUIRED_EMPLOYEE_FIELDS) {
-      if (!employeeData[field]) {
-        empErr[field] = true;
-        errorMessages.push(`${fieldNames[field]} is required`);
-      }
-    }
-    
-    // Check required vehicle fields
-    for (let field of REQUIRED_VEHICLE_FIELDS) {
-      if (!vehicleData[field]) {
-        vehErr[field] = true;
-        errorMessages.push(`${fieldNames[field]} is required`);
-      }
-    }
+    // Local validation
+    const { empErr, vehErr } = validateFields(employeeData, vehicleData);
 
-    // Validate CNIC format (Pakistani: 00000-0000000-0)
-    if (employeeData.cnic && !CNIC_REGEX.test(employeeData.cnic)) {
-      empErr.cnic = true;
-      errorMessages.push("CNIC format invalid. Use: 00000-0000000-0");
-    }
-
-    // Check uniqueness in Firestore (only if fields are filled and not editing the same card)
-    if (employeeData.serialNo || employeeData.employeeCode || employeeData.cnic) {
-      try {
-        const { collection, query, where, getDocs } = await import("firebase/firestore");
-        const { db } = await import("../config/firebase");
-        
-        const cardsRef = collection(db, "cards");
-        
-        // Check Serial No uniqueness
-        if (employeeData.serialNo) {
-          const qSerial = query(cardsRef, where("serialNo", "==", employeeData.serialNo));
-          const snapshotSerial = await getDocs(qSerial);
-          if (!snapshotSerial.empty) {
-            // If editing, only error if the Serial No belongs to a different card
-            if (!isEditing || snapshotSerial.docs[0].id !== editingCard.id) {
-              empErr.serialNo = true;
-              errorMessages.push("Serial No already exists!");
-            }
-          }
-        }
-        
-        // Check Employee Code uniqueness
-        if (employeeData.employeeCode) {
-          const qCode = query(cardsRef, where("employeeCode", "==", employeeData.employeeCode));
-          const snapshotCode = await getDocs(qCode);
-          if (!snapshotCode.empty) {
-            // If editing, only error if the Employee Code belongs to a different card
-            if (!isEditing || snapshotCode.docs[0].id !== editingCard.id) {
-              empErr.employeeCode = true;
-              errorMessages.push("Employee Code already exists!");
-            }
-          }
-        }
-        
-        // Check CNIC uniqueness (only if format is valid)
-        if (employeeData.cnic && CNIC_REGEX.test(employeeData.cnic)) {
-          const qCNIC = query(cardsRef, where("cnic", "==", employeeData.cnic));
-          const snapshotCNIC = await getDocs(qCNIC);
-          if (!snapshotCNIC.empty) {
-            // If editing, only error if the CNIC belongs to a different card
-            if (!isEditing || snapshotCNIC.docs[0].id !== editingCard.id) {
-              empErr.cnic = true;
-              errorMessages.push("CNIC already registered!");
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error checking uniqueness:", error);
-        errorMessages.push("Error checking database. Please try again.");
-      }
-    }
+    // Uniqueness check against Firestore
+    const uniqueness = await checkUniqueness(employeeData, isEditing, editingCard?.id);
+    Object.assign(empErr, uniqueness.empErr);
 
     const ok = Object.keys(empErr).length === 0 && Object.keys(vehErr).length === 0;
     setEmployeeErrors(empErr);
     setVehicleErrors(vehErr);
-    
-    // Show first 3 error messages as notifications
-    if (!ok && errorMessages.length > 0) {
-      const displayMessages = errorMessages.slice(0, 3);
-      displayMessages.forEach(msg => {
-        addNotification(msg, "error", 4000);
-      });
+
+    if (!ok) {
+      addNotification("Please fix the highlighted errors", "error", 3000);
     }
-    
+
     return ok;
   };
 
   const handlePreview = async () => {
-    if (!await validate()) {
-      // Notifications already shown in validate()
-      return;
-    }
+    if (!(await validate())) return;
     setIsPreviewLoading(true);
     setLoadingMessage("Generating preview...");
-    // Simulate small delay for better UX
     setTimeout(() => {
       setShowPreview(true);
       setIsPreviewLoading(false);
@@ -241,97 +101,120 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
   };
 
   const handleSaveToFirestore = async () => {
-    // Show loader immediately
     setIsSaving(true);
     setLoadingMessage("Validating data...");
-    
-    if (!await validate()) {
-      // Notifications already shown in validate()
+
+    if (!(await validate())) {
       setIsSaving(false);
       return;
     }
 
     try {
       if (isEditing) {
-        // Update existing card
         setLoadingMessage("Updating card...");
         await updateCardInFirestore(editingCard.id, employeeData, vehicleData);
         addNotification("Card updated successfully!", "success", 3000);
       } else {
-        // Create new card
         setLoadingMessage("Creating new card...");
         const cardId = await saveCardToFirestore(employeeData, vehicleData);
         addNotification(`Card saved successfully! ID: ${cardId.slice(0, 8)}...`, "success", 3000);
-        // Clear localStorage after successful save
         localStorage.removeItem("employeeData");
         localStorage.removeItem("vehicleData");
       }
-      // Reset form and navigate
       setTimeout(() => {
         setEmployeeData({});
         setVehicleData({});
         setEmployeeErrors({});
         setVehicleErrors({});
         setShowPreview(false);
-        // Navigate back and invalidate cache
         if (onCardCreated) {
           onCardCreated();
         } else if (onNavigateToDashboard) {
           onNavigateToDashboard();
         }
       }, 1500);
-    } catch (error) {
+    } catch {
       addNotification("Error saving card. Please try again.", "error", 4000);
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Combined errors for the unified form
+  const allErrors = { ...employeeErrors, ...vehicleErrors };
+  const allValues = { ...employeeData, ...vehicleData };
+
   return (
     <>
       {/* HEADER */}
-      <header className="top-bar">
-        <div 
-          className="header-title" 
-          onClick={onNavigateToDashboard} 
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px' }}
-          title="Back to Dashboard"
-        >
-          <img src={logo} alt="F1 Logo" style={{ height: '36px' }} />
-          <h2>{isEditing ? 'Edit Office Duty Card' : 'Office Duty Card Generator'}</h2>
-        </div>
-        {onNavigateToDashboard && (
-          <button 
-            className="back-btn" 
-            onClick={onNavigateToDashboard}
-            title="Back to Dashboard"
-          >
-            ← Dashboard
-          </button>
-        )}
-      </header>
+      <Navbar
+        onNavigateToDashboard={onNavigateToDashboard}
+        onLogout={onLogout}
+        user={user}
+        title={isEditing ? "Edit Employee Card" : "Create New Employee Card"}
+        subtitle="Fill in all required information"
+        showBack
+      />
 
-      {/* FORM */}
-      <main className="layout-center">
-        <div className="form-wrapper">
-          <EmployeeForm onChange={setEmployeeData} errors={employeeErrors} values={employeeData} />
-          <VehicleForm onChange={setVehicleData} errors={vehicleErrors} values={vehicleData} />
+      {/* TWO-COLUMN LAYOUT */}
+      <main className="create-card-main-container">
+        <div className="create-card-content-wrapper">
+          {/* LEFT: PHOTO SECTION */}
+          <div className="photo-section-card">
+            <EmployeeForm
+              onChange={setEmployeeData}
+              errors={employeeErrors}
+              values={employeeData}
+              photoOnly
+            />
+          </div>
 
-          {/* IMPORTANT: type="button" */}
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button type="button" className="primary-btn" onClick={handlePreview}>
-              Preview Card
-            </button>
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={handleSaveToFirestore}
-              disabled={isSaving}
-              style={{ background: isSaving ? "#999" : "#2e7d32" }}
-            >
-              {isSaving ? "Saving..." : isEditing ? "Update Card" : "Save to Database"}
-            </button>
+          {/* RIGHT: ALL FIELDS IN ONE CARD */}
+          <div className="info-section-card">
+            <EmployeeForm
+              onChange={setEmployeeData}
+              onVehicleChange={setVehicleData}
+              errors={allErrors}
+              values={allValues}
+              vehicleData={vehicleData}
+              unified
+            />
+
+            {/* Action Buttons */}
+            <div className="form-actions-bar">
+              <button type="button" className="btn-cancel" onClick={onNavigateToDashboard}>
+                Cancel
+              </button>
+              <button type="button" className="btn-preview" onClick={handlePreview}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                Preview PDF
+              </button>
+              <button
+                type="button"
+                className="btn-save"
+                onClick={handleSaveToFirestore}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <span className="spinner" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    Save to Database
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -342,7 +225,7 @@ const CreateCard = ({ onNavigateToDashboard, onCardCreated, editingCard }) => {
           employeeData={employeeData}
           vehicleData={vehicleData}
           orientation="portrait"
-          isModal={true}
+          isModal
           onClose={() => setShowPreview(false)}
         />
       )}
