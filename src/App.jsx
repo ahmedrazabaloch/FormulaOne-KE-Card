@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./config/firebase";
-import CreateCard from "./pages/CreateCard";
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login";
 import { NotificationProvider } from "./context/NotificationContext";
 import Notification from "./components/Notification";
 import Loader from "./components/Loader";
+
+// Lazy load pages for better performance
+const CreateCard = lazy(() => import("./pages/CreateCard"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Login = lazy(() => import("./pages/Login"));
 
 function App() {
   const [currentPage, setCurrentPage] = useState("dashboard"); // Start with dashboard
@@ -55,8 +57,8 @@ function App() {
       setCurrentPage("dashboard");
       setCachedCards(null);
       setEditingCard(null);
-    } catch {
-      // Logout error handled silently
+    } catch (error) {
+      console.error("Logout failed", error);
     }
   };
 
@@ -64,53 +66,46 @@ function App() {
     setCurrentPage("dashboard");
   };
 
-  // Show loader while checking auth
-  if (authLoading) {
-    return (
-      <NotificationProvider>
-        <>
-          <Loader message="Loading..." />
-          <Notification />
-        </>
-      </NotificationProvider>
-    );
-  }
+  // Main render logic
+  const renderContent = () => {
+    if (authLoading) {
+      return <Loader message="Loading..." />;
+    }
 
-  // Show login page if not authenticated
-  if (!user) {
+    if (!user) {
+      return <Login onLoginSuccess={handleLoginSuccess} />;
+    }
+
+    if (currentPage === "dashboard") {
+      return (
+        <Dashboard 
+          onNavigateToCreate={handleNavigateToCreate}
+          cachedCards={cachedCards}
+          setCachedCards={setCachedCards}
+          onEditCard={handleEditCard}
+          onLogout={handleLogout}
+          user={user}
+        />
+      );
+    }
+
     return (
-      <NotificationProvider>
-        <>
-          <Login onLoginSuccess={handleLoginSuccess} />
-          <Notification />
-        </>
-      </NotificationProvider>
+      <CreateCard 
+        onNavigateToDashboard={handleNavigateToDashboard}
+        onCardCreated={handleCardCreated}
+        editingCard={editingCard}
+        onLogout={handleLogout}
+        user={user}
+      />
     );
-  }
+  };
 
   return (
     <NotificationProvider>
-      <>
-        {currentPage === "dashboard" ? (
-          <Dashboard 
-            onNavigateToCreate={handleNavigateToCreate}
-            cachedCards={cachedCards}
-            setCachedCards={setCachedCards}
-            onEditCard={handleEditCard}
-            onLogout={handleLogout}
-            user={user}
-          />
-        ) : (
-          <CreateCard 
-            onNavigateToDashboard={handleNavigateToDashboard}
-            onCardCreated={handleCardCreated}
-            editingCard={editingCard}
-            onLogout={handleLogout}
-            user={user}
-          />
-        )}
-        <Notification />
-      </>
+      <Suspense fallback={<Loader message="Loading application..." />}>
+        {renderContent()}
+      </Suspense>
+      <Notification />
     </NotificationProvider>
   );
 }
