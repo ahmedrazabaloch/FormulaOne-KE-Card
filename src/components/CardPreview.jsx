@@ -73,7 +73,7 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
       `;
       document.body.appendChild(wrapper);
 
-      // Clone and style the card - NO BORDER for PDF
+      // Clone and style the card - Light gray border for PDF
       const clone = cards[i].cloneNode(true);
       clone.style.cssText = `
         width: ${h * MM_TO_PX}px !important;
@@ -85,7 +85,7 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
         display: flex;
         flex-direction: column;
         font-family: Arial, Helvetica, sans-serif;
-        border: none !important;
+        border: 1px solid #ccc !important;
         box-shadow: none !important;
         background: white !important;
       `;
@@ -114,12 +114,12 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
         `;
       });
 
-      // Style table values for better padding
+      // Style table values for better padding - light gray underline
       const tableValues = clone.querySelectorAll('.table-value, .table-value-inline');
       tableValues.forEach((val) => {
         val.style.cssText = `
           padding: ${0.8 * MM_TO_PX}px ${1 * MM_TO_PX}px !important;
-          border-bottom: 0.5px solid #000 !important;
+          border-bottom: 0.5px solid #999 !important;
           font-size: 7px !important;
           font-weight: 500 !important;
         `;
@@ -144,7 +144,8 @@ const CardPreview = ({ employeeData, vehicleData, onClose, orientation = "portra
                 object-fit: contain !important;
                 display: block !important;
                 margin: ${2 * MM_TO_PX}px auto !important;
-                border: none !important;
+                border: 2px solid #333 !important;
+                border-radius: ${3 * MM_TO_PX}px !important;
                 box-sizing: border-box !important;
                 flex-shrink: 0 !important;
               `;

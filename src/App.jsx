@@ -10,12 +10,63 @@ const CreateCard = lazy(() => import("./pages/CreateCard"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Login = lazy(() => import("./pages/Login"));
 
+// Cache key for sessionStorage
+const CARDS_CACHE_KEY = "cachedCardsData";
+const CACHE_TIMESTAMP_KEY = "cachedCardsTimestamp";
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache validity
+
 function App() {
-  const [currentPage, setCurrentPage] = useState("dashboard"); // Start with dashboard
-  const [cachedCards, setCachedCards] = useState(null); // Cache cards data
-  const [editingCard, setEditingCard] = useState(null); // Card being edited
+  const [currentPage, setCurrentPage] = useState("dashboard");
+  const [cachedCards, setCachedCards] = useState(null);
+  const [editingCard, setEditingCard] = useState(null);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Load cache from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const cachedData = sessionStorage.getItem(CARDS_CACHE_KEY);
+      const cacheTimestamp = sessionStorage.getItem(CACHE_TIMESTAMP_KEY);
+
+      if (cachedData && cacheTimestamp) {
+        const timestamp = parseInt(cacheTimestamp, 10);
+        const isValid = Date.now() - timestamp < CACHE_DURATION;
+
+        if (isValid) {
+          const parsedData = JSON.parse(cachedData);
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            setCachedCards(parsedData);
+          }
+        } else {
+          // Cache expired, clear it
+          sessionStorage.removeItem(CARDS_CACHE_KEY);
+          sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading cache:", error);
+    }
+  }, []);
+
+  // Update sessionStorage when cache changes
+  const updateCache = (cardsData) => {
+    setCachedCards(cardsData);
+    if (cardsData && Array.isArray(cardsData)) {
+      try {
+        sessionStorage.setItem(CARDS_CACHE_KEY, JSON.stringify(cardsData));
+        sessionStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+      } catch (error) {
+        console.error("Error saving cache:", error);
+      }
+    }
+  };
+
+  // Clear cache
+  const clearCache = () => {
+    setCachedCards(null);
+    sessionStorage.removeItem(CARDS_CACHE_KEY);
+    sessionStorage.removeItem(CACHE_TIMESTAMP_KEY);
+  };
 
   // Listen to auth state changes
   useEffect(() => {
@@ -29,7 +80,6 @@ function App() {
 
   const handleNavigateToCreate = () => {
     setEditingCard(null);
-    // Clear localStorage when creating new card
     localStorage.removeItem("employeeData");
     localStorage.removeItem("vehicleData");
     setCurrentPage("create");
@@ -46,7 +96,7 @@ function App() {
 
   const handleCardCreated = () => {
     // Invalidate cache when new card is created
-    setCachedCards(null);
+    clearCache();
     setEditingCard(null);
     setCurrentPage("dashboard");
   };
@@ -55,7 +105,7 @@ function App() {
     try {
       await signOut(auth);
       setCurrentPage("dashboard");
-      setCachedCards(null);
+      clearCache();
       setEditingCard(null);
     } catch (error) {
       console.error("Logout failed", error);
@@ -78,10 +128,10 @@ function App() {
 
     if (currentPage === "dashboard") {
       return (
-        <Dashboard 
+        <Dashboard
           onNavigateToCreate={handleNavigateToCreate}
           cachedCards={cachedCards}
-          setCachedCards={setCachedCards}
+          setCachedCards={updateCache}
           onEditCard={handleEditCard}
           onLogout={handleLogout}
           user={user}
@@ -90,7 +140,7 @@ function App() {
     }
 
     return (
-      <CreateCard 
+      <CreateCard
         onNavigateToDashboard={handleNavigateToDashboard}
         onCardCreated={handleCardCreated}
         editingCard={editingCard}
